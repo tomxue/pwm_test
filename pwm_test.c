@@ -21,6 +21,7 @@
 #define CM_CLOCK_BASE 0x48004000
 #define CM_FCLKEN1_CORE 0xa00
 #define CM_ICLKEN1_CORE 0xa10
+#define CM_CLKSEL_CORE 0xa40
 
 #define INT *(volatile unsigned int*)
 
@@ -32,6 +33,7 @@ unsigned int pwm_calc_resolution(int pwm_frequency, int clock_frequency)
 }
 
 void pwm_config_timer(unsigned int *gpt, unsigned int resolution, float duty_cycle){
+	duty_cycle = duty_cycle/100;
 	unsigned long counter_start = 0xffffffff - resolution;
 	unsigned long dc = 0xffffffff - ((unsigned long) (resolution * duty_cycle));
 
@@ -48,11 +50,11 @@ void pwm_config_timer(unsigned int *gpt, unsigned int resolution, float duty_cyc
         counter_start = 0xffffffff - 2;
     }
 
-    gpt[GPT_REG_TCLR] = 0; // Turn off
-    gpt[GPT_REG_TCRR] = counter_start;
-    gpt[GPT_REG_TLDR] = counter_start;
-    gpt[GPT_REG_TMAR] = dc;
-    gpt[GPT_REG_TCLR] = (
+    gpt[GPT_REG_TCLR/4] = 0; // Turn off
+    gpt[GPT_REG_TCRR/4] = counter_start;
+    gpt[GPT_REG_TLDR/4] = counter_start;
+    gpt[GPT_REG_TMAR/4] = dc;
+    gpt[GPT_REG_TCLR/4] = (
         (1 << 0)  | // ST -- enable counter
         (1 << 1)  | // AR -- autoreload on overflow
         (1 << 6)  | // CE -- compare enabled
@@ -62,16 +64,7 @@ void pwm_config_timer(unsigned int *gpt, unsigned int resolution, float duty_cyc
     );
 }
 
-void setServoAngle(unsigned int *gpt, unsigned int resolution, float Angle){
-	float duty;
-
-	//duty=([time center]+[Angle*[time_90]/90])/[period]
-	duty=(1.5-(Angle*0.8/90))/20;
-
-	pwm_config_timer(gpt,resolution,duty);
-}
-
-int main(){
+int main(int argc, char *argv[]){
 	int dev_fd;
 	unsigned int *PinConfig;
 	unsigned int CurValue;
@@ -88,7 +81,15 @@ int main(){
 	else
 		printf("dev_fd = %d...............\n", dev_fd);
 
-	//enable the clock
+	//set the clock source to 13MHz
+	PinConfig = (unsigned int *) mmap(NULL, 0x300, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, CM_CLOCK_BASE);
+	CurValue = INT(PinConfig+CM_CLKSEL_CORE/4);
+	CurValue &= 0xffffffbf;
+	CurValue |= 0x40;	//set CLKSEL_GPT10 1,
+	INT(PinConfig+CM_CLKSEL_CORE/4) = CurValue;
+	printf("13MHz clock source enabled........\n");
+
+	//enable the clock: FCLK and ICLK
 	PinConfig = (unsigned int *) mmap(NULL, 0x300, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, CM_CLOCK_BASE);
 	CurValue = INT(PinConfig+CM_FCLKEN1_CORE/4);
 	CurValue &= 0xfffff7ff;
@@ -127,20 +128,9 @@ int main(){
 	//GPTIMER10 base address: 0x48086000
 	gpt10=(unsigned int *) mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, 0x48086000);
 
-	resolution = pwm_calc_resolution(50, PWM_FREQUENCY_32KHZ);
+	resolution = pwm_calc_resolution(10000, PWM_FREQUENCY_13MHZ);
 
-	for(i=1;i<5;i++){
-		setServoAngle(gpt10, resolution,90.0);
-		//sleep(1);
-		setServoAngle(gpt10, resolution,45.0);
-		//sleep(1);
-		setServoAngle(gpt10, resolution,0.0);
-		//sleep(1);
-		setServoAngle(gpt10, resolution,-45.0);
-		//sleep(1);
-		setServoAngle(gpt10, resolution,-90.0);
-		//sleep(1);
-	}
+	pwm_config_timer(gpt10, resolution,atoi(argv[1]));
 
 	munmap(gpt10, 0x10000);
 	close(dev_fd);
