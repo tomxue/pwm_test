@@ -107,7 +107,7 @@ int main(int argc, char *argv[]){
 	//System control module: 0x4800 2000, found via devmem2
 	PinConfig=(unsigned int *) mmap(NULL, 0x200, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, 0x48002000);
 
-	//Set PWM function on pin
+	//Set PWM function on pin: GPIO_145, BB-xM-RevC P9-pin10
 	//division by 4 is necessary because the size of one element of "unsigned int" is 4 bytes, which corresponds to the size of control registers
 	CurValue=INT(PinConfig+0x174/4); 
 	CurValue &= 0x0000ffff;
