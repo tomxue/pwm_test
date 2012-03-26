@@ -12,7 +12,7 @@
 #define PWM_FREQUENCY_32KHZ 32000
 
 //Timer register
-#define GPT_REG_TCLR 0x024
+#define GPT_REG_TCLR 0x024  //in byte space
 #define GPT_REG_TCRR 0x028
 #define GPT_REG_TLDR 0x02c
 #define GPT_REG_TMAR 0x038
@@ -50,6 +50,7 @@ void pwm_config_timer(unsigned int *gpt, unsigned int resolution, float duty_cyc
         counter_start = 0xffffffff - 2;
     }
 
+    //GPT_REG_TCLR/4: in int space
     gpt[GPT_REG_TCLR/4] = 0; // Turn off
     gpt[GPT_REG_TCRR/4] = counter_start;
     gpt[GPT_REG_TLDR/4] = counter_start;
@@ -125,7 +126,8 @@ int main(int argc, char *argv[]){
 	//CurValue |= (1<<7);//Configure 11 timer to 13 MHz
 	//Config[0xA40/4]=CurValue;
 
-	//GPTIMER10 base address: 0x48086000
+	//GPTIMER10 base address: 0x48086000(in byte space)
+    //gpt10: in int space
 	gpt10=(unsigned int *) mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, 0x48086000);
 
 	resolution = pwm_calc_resolution(10000, PWM_FREQUENCY_13MHZ);
