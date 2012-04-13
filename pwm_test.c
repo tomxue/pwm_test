@@ -73,7 +73,7 @@ int main(int argc, char *argv[]){
 	unsigned long resolution;
 	int i;
 
-    printf("Run like: sudo ./pwm_test 50\n");
+    printf("Run like: sudo ./pwm_test 50\n\n");
 	//Configure PIN
 	dev_fd = open("/dev/mem", O_RDWR | O_SYNC);
 	if (dev_fd == -1) {
@@ -109,13 +109,13 @@ int main(int argc, char *argv[]){
 	//System control module: 0x4800 2000, found via devmem2
 	PinConfig=(unsigned int *) mmap(NULL, 0x200, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, 0x48002000);
 
-	//Set PWM function on pin: GPIO_145, BB-xM-RevC P9-pin10
+	//Set PWM function on pin: GPIO_56, EMA-product-board GPMC_nCS5, DM3730 spec page 2428
 	//division by 4 is necessary because the size of one element of "unsigned int" is 4 bytes, which corresponds to the size of control registers
-	CurValue=INT(PinConfig+0x174/4); 
-	CurValue &= 0x0000ffff;
+	CurValue=INT(PinConfig+0x0B8/4); 
+	CurValue &= 0xffff0000;
 	/* Timer 10: mode 2 - gpt_10_pwm_evt, PullUp selected, PullUp/Down enabled, Input enable value for pad_x */
-	CurValue |= 0x011A0000; 
-	INT(PinConfig+0x174/4) = CurValue; //PIN CONFIGURED AS BIDIRECTIONAL
+	CurValue |= 0x0000011B; 
+	INT(PinConfig+0x0B8/4) = CurValue; //PIN CONFIGURED AS BIDIRECTIONAL
 
 	munmap(PinConfig, 0x200);
 
