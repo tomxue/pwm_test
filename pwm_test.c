@@ -73,6 +73,7 @@ int main(int argc, char *argv[]){
 	unsigned long resolution;
 	int i;
 
+    printf("Run like: sudo ./pwm_test 50\n");
 	//Configure PIN
 	dev_fd = open("/dev/mem", O_RDWR | O_SYNC);
 	if (dev_fd == -1) {
