@@ -11,13 +11,13 @@
 // 32 kHz clock
 #define PWM_FREQUENCY_32KHZ 32000
 
-//Timer register
-#define GPT_REG_TCLR 0x024  //in byte space
+// Timer register
+#define GPT_REG_TCLR 0x024  // in byte space
 #define GPT_REG_TCRR 0x028
 #define GPT_REG_TLDR 0x02c
 #define GPT_REG_TMAR 0x038
 
-//clock register of GPTIMER10
+// clock register of GPTIMER10
 #define CM_CLOCK_BASE 0x48004000
 #define CM_FCLKEN1_CORE 0xa00
 #define CM_ICLKEN1_CORE 0xa10
@@ -50,7 +50,7 @@ void pwm_config_timer(unsigned int *gpt, unsigned int resolution, float duty_cyc
         counter_start = 0xffffffff - 2;
     }
 
-    //GPT_REG_TCLR/4: in int space
+    // GPT_REG_TCLR/4: in int space
     gpt[GPT_REG_TCLR/4] = 0; // Turn off
     gpt[GPT_REG_TCRR/4] = counter_start;
     gpt[GPT_REG_TLDR/4] = counter_start;
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
 	int i;
 
     printf("Run like: sudo ./pwm_test 50\n\n");
-	//Configure PIN
+	// Configure PIN
 	dev_fd = open("/dev/mem", O_RDWR | O_SYNC);
 	if (dev_fd == -1) {
 		printf("Can not opem /dev/mem.");
@@ -83,34 +83,36 @@ int main(int argc, char *argv[]){
 	else
 		printf("dev_fd = %d...............\n", dev_fd);
 
-	//set the clock source to 13MHz
-	PinConfig = (unsigned int *) mmap(NULL, 0x300, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, CM_CLOCK_BASE);
+	// set the clock source to 13MHz
+    // comparing to GPIO/gpio.c, (unsigned int *) is added here
+    // so it then goes into int space and the offset (@char) must be devided by 4 (@int)
+	PinConfig = (unsigned int *) mmap(NULL, 0x300, PROT_READ | PROT_WRITE, MAP_SHARED, dev_fd, CM_CLOCK_BASE);
 	CurValue = INT(PinConfig+CM_CLKSEL_CORE/4);
 	CurValue &= 0xffffffbf;
-	CurValue |= 0x40;	//set CLKSEL_GPT10 1,
+	CurValue |= 0x40;	// set CLKSEL_GPT10 1,
 	INT(PinConfig+CM_CLKSEL_CORE/4) = CurValue;
 	printf("13MHz clock source enabled........\n");
 
-	//enable the clock: FCLK and ICLK
-	PinConfig = (unsigned int *) mmap(NULL, 0x300, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, CM_CLOCK_BASE);
+	// enable the clock: FCLK and ICLK
+	PinConfig = (unsigned int *) mmap(NULL, 0x300, PROT_READ | PROT_WRITE, MAP_SHARED, dev_fd, CM_CLOCK_BASE);
 	CurValue = INT(PinConfig+CM_FCLKEN1_CORE/4);
 	CurValue &= 0xfffff7ff;
-	CurValue |= 0x800;	//set EN_GPT10 1, GPTIMER 10 functional clock is enabled
+	CurValue |= 0x800;	// set EN_GPT10 1, GPTIMER 10 functional clock is enabled
 	INT(PinConfig+CM_FCLKEN1_CORE/4) = CurValue;
 	printf("FCLOCK enabled........\n");
 
 	CurValue = INT(PinConfig+CM_ICLKEN1_CORE/4);
 	CurValue &= 0xfffff7ff;
-	CurValue |= 0x800;	//set EN_GPT10 1, GPTIMER 10 interface clock is enabled
+	CurValue |= 0x800;	// set EN_GPT10 1, GPTIMER 10 interface clock is enabled
 	INT(PinConfig+CM_ICLKEN1_CORE/4) = CurValue;
 	printf("ICLOCK enabled.........\n");
 	munmap(PinConfig, 0x1000);
 
-	//System control module: 0x4800 2000, found via devmem2
+	// System control module: 0x4800 2000, found via devmem2
 	PinConfig=(unsigned int *) mmap(NULL, 0x200, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, 0x48002000);
 
-	//Set PWM function on pin: GPIO_56, EMA-product-board GPMC_nCS5, DM3730 spec page 2428
-	//division by 4 is necessary because the size of one element of "unsigned int" is 4 bytes, which corresponds to the size of control registers
+	// Set PWM function on pin: GPIO_56, EMA-product-board GPMC_nCS5, DM3730 spec page 2428
+	// division by 4 is necessary because the size of one element of "unsigned int" is 4 bytes, which corresponds to the size of control registers
 	CurValue=INT(PinConfig+0x0B8/4); 
 	CurValue &= 0xffff0000;
 	/* Timer 10: mode 2 - gpt_10_pwm_evt, PullUp selected, PullUp/Down enabled, Input enable value for pad_x */
@@ -119,16 +121,16 @@ int main(int argc, char *argv[]){
 
 	munmap(PinConfig, 0x200);
 
-	//Configure timer 10 and 11 to 13 MHz
-	//Config=(unsigned int *) mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, 0x48004000);
-	//CurValue=Config[0xA40/4];
-	//CurValue=CurValue | (1<<6) | (1<<7);
-	//CurValue |= (1<<6);//Configure 10 timer to 13 MHz
-	//CurValue |= (1<<7);//Configure 11 timer to 13 MHz
-	//Config[0xA40/4]=CurValue;
+	// Configure timer 10 and 11 to 13 MHz
+	// Config=(unsigned int *) mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, 0x48004000);
+	// CurValue=Config[0xA40/4];
+	// CurValue=CurValue | (1<<6) | (1<<7);
+	// CurValue |= (1<<6);//Configure 10 timer to 13 MHz
+	// CurValue |= (1<<7);//Configure 11 timer to 13 MHz
+	// Config[0xA40/4]=CurValue;
 
-	//GPTIMER10 base address: 0x48086000(in byte space)
-    //gpt10: in int space
+	// GPTIMER10 base address: 0x48086000(in byte space)
+    // gpt10: in int space
 	gpt10=(unsigned int *) mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED,dev_fd, 0x48086000);
 
 	resolution = pwm_calc_resolution(10000, PWM_FREQUENCY_13MHZ);
